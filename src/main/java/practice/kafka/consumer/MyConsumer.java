@@ -23,23 +23,25 @@ public class MyConsumer {
 
     @KafkaListener(
             topics = {MyTopic.MY_JSON_TOPIC},
-            groupId = "test-consumer-group"
+            groupId = "test-consumer-group",
+            concurrency = "3" // concurrency가 3이므로 한번에 3개 파티션 데이터 처리 가능
     )
     public void listen(ConsumerRecord<String, String> message) {
         MyMessage myMessage;
         try {
+            Thread.sleep(1000); // 데이터를 1초 처리한다고 가정
             myMessage = objectMapper.readValue(message.value(), MyMessage.class);
-        } catch (JsonProcessingException e) {
+        } catch (JsonProcessingException | InterruptedException e) {
             throw new RuntimeException(e);
         }
         this.printPayloadIfFirstMessage(myMessage);
     }
 
     private void printPayloadIfFirstMessage(MyMessage myMessage) {
-        if(idHistoryMap.putIfAbsent(String.valueOf(myMessage.getId()), 1) == null) {
-            log.info("[Simple Consumer] 메시지 도착! = {}", myMessage); // // Exactly Once 실행되어야 하는 로직으로 가정
+        if (idHistoryMap.putIfAbsent(String.valueOf(myMessage.getId()), 1) == null) {
+            log.info("[Simple Consumer({})] 메시지 도착! = {}", Thread.currentThread().getId(), myMessage); // // Exactly Once 실행되어야 하는 로직으로 가정
         } else {
-            log.info("[Simple Consumer] 메시지 중복! = {}", myMessage);
+            log.info("[Simple Consumer({})] 메시지 중복! = {}", Thread.currentThread().getId(), myMessage);
         }
     }
 }
