@@ -6,10 +6,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 import practice.kafka.model.MyMessage;
 import practice.kafka.model.MyTopic;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
@@ -17,6 +19,7 @@ import practice.kafka.model.MyTopic;
 public class MyConsumer {
 
     private final ObjectMapper objectMapper;
+    private final Map<String, Integer> idHistoryMap = new ConcurrentHashMap<>(); // Exactly Once를 보장하기 위함 (보통은 Redis를 사용하겠지만, 간단하게 함)
 
     @KafkaListener(
             topics = {MyTopic.MY_JSON_TOPIC},
@@ -29,6 +32,14 @@ public class MyConsumer {
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
-        log.info("[Simple Consumer] Message 도착! - {}", myMessage);
+        this.printPayloadIfFirstMessage(myMessage);
+    }
+
+    private void printPayloadIfFirstMessage(MyMessage myMessage) {
+        if(idHistoryMap.putIfAbsent(String.valueOf(myMessage.getId()), 1) == null) {
+            log.info("[Simple Consumer] 메시지 도착! = {}", myMessage); // // Exactly Once 실행되어야 하는 로직으로 가정
+        } else {
+            log.info("[Simple Consumer] 메시지 중복! = {}", myMessage);
+        }
     }
 }
