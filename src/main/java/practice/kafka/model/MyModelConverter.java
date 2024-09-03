@@ -4,8 +4,8 @@ import practice.kafka.data.MyEntity;
 
 public class MyModelConverter {
 
-    public static MyModel toModel(MyEntity entity) {
-        return new MyModel(
+    public static MyCdcModel toModel(MyEntity entity) {
+        return new MyCdcModel(
                 entity.getId(),
                 entity.getUserId(),
                 entity.getUserAge(),
@@ -16,7 +16,7 @@ public class MyModelConverter {
         );
     }
 
-    public static MyEntity toEntity(MyModel model) {
+    public static MyEntity toEntity(MyCdcModel model) {
         return new MyEntity(
                 model.getId(),
                 model.getUserId(),
@@ -28,8 +28,8 @@ public class MyModelConverter {
         );
     }
 
-    public static MyModel toModel(MyCdcMessage message) {
-        return new MyModel(
+    public static MyCdcModel toModel(MyCdcMessage message) {
+        return new MyCdcModel(
                 message.getId(),
                 message.getPayload().getUserId(),
                 message.getPayload().getUserAge(),
@@ -40,7 +40,7 @@ public class MyModelConverter {
         );
     }
 
-    public static MyCdcMessage toMessage(Integer id, MyModel model, OperationType operationType) {
+    public static MyCdcMessage toMessage(Integer id, MyCdcModel model, OperationType operationType) {
         MyCdcMessage.Payload payload = null;
         if (operationType == OperationType.CREATE || operationType == OperationType.UPDATE) { // C, U의 경우만 payload 존재
             payload = new MyCdcMessage.Payload(

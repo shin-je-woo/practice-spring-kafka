@@ -1,14 +1,15 @@
 package practice.kafka.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import practice.kafka.data.MyEntity;
 import practice.kafka.data.MyRepository;
-import practice.kafka.model.MyModel;
+import practice.kafka.event.MyCdcApplicationEvent;
+import practice.kafka.model.MyCdcModel;
 import practice.kafka.model.MyModelConverter;
 import practice.kafka.model.OperationType;
-import practice.kafka.producer.MyCdcProducer;
 
 import java.util.List;
 
@@ -17,44 +18,47 @@ import java.util.List;
 public class MyService {
 
     private final MyRepository myRepository;
-    private final MyCdcProducer myCdcProducer;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
-    public List<MyModel> findAll() {
+    public List<MyCdcModel> findAll() {
         return myRepository.findAll().stream()
                 .map(MyModelConverter::toModel)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public MyModel findById(Integer id) {
+    public MyCdcModel findById(Integer id) {
         return myRepository.findById(id)
                 .map(MyModelConverter::toModel)
                 .orElse(null);
     }
 
     @Transactional
-    public MyModel save(MyModel myModel) {
-        MyEntity myEntity = myRepository.save(MyModelConverter.toEntity(myModel));
-        MyModel resultModel = MyModelConverter.toModel(myEntity);
-        myCdcProducer.sendMessage(
-                MyModelConverter.toMessage(
+    public MyCdcModel save(MyCdcModel myCdcModel) {
+        MyEntity myEntity = myRepository.save(MyModelConverter.toEntity(myCdcModel));
+        MyCdcModel resultModel = MyModelConverter.toModel(myEntity);
+        eventPublisher.publishEvent(
+                MyCdcApplicationEvent.of(
                         resultModel.getId(),
                         resultModel,
                         OperationType.CREATE
                 )
         );
+        if (myCdcModel.getContent().equals("실패")) {
+            throw new IllegalArgumentException("일부러 실패~");
+        }
         return resultModel;
     }
 
     @Transactional
-    public MyModel update(Integer id, String content) {
+    public MyCdcModel update(Integer id, String content) {
         MyEntity myEntity = myRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("not found"));
         myEntity.changeContent(content);
-        MyModel resultModel = MyModelConverter.toModel(myEntity);
-        myCdcProducer.sendMessage(
-                MyModelConverter.toMessage(
+        MyCdcModel resultModel = MyModelConverter.toModel(myEntity);
+        eventPublisher.publishEvent(
+                MyCdcApplicationEvent.of(
                         resultModel.getId(),
                         resultModel,
                         OperationType.UPDATE
@@ -66,11 +70,12 @@ public class MyService {
     @Transactional
     public void delete(Integer id) {
         myRepository.deleteById(id);
-        myCdcProducer.sendMessage(
-                MyModelConverter.toMessage(
+        eventPublisher.publishEvent(
+                MyCdcApplicationEvent.of(
                         id,
                         null,
                         OperationType.DELETE
-                ));
+                )
+        );
     }
 }

@@ -5,7 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-import practice.kafka.model.MyModel;
+import practice.kafka.model.MyCdcModel;
 import practice.kafka.service.MyService;
 
 import java.util.List;
@@ -21,30 +21,30 @@ public class MyCdcController {
     private final MyService myService;
 
     @GetMapping("/greetings")
-    List<MyModel> list() {
+    List<MyCdcModel> list() {
         return myService.findAll();
     }
 
     @GetMapping("/greetings/{id}")
-    MyModel get(
+    MyCdcModel get(
             @PathVariable Integer id
     ) {
         return myService.findById(id);
     }
 
     @PostMapping("/greetings")
-    MyModel greeting(@RequestBody Request request) {
-        MyModel myModel = MyModel.of(
+    MyCdcModel greeting(@RequestBody Request request) {
+        MyCdcModel myCdcModel = MyCdcModel.of(
                 request.userId,
                 request.userAge,
                 request.userName,
                 request.content
         );
-        return myService.save(myModel);
+        return myService.save(myCdcModel);
     }
 
     @PatchMapping("/greetings/{id}")
-    MyModel update(
+    MyCdcModel update(
             @PathVariable Integer id,
             @RequestBody String content
     ) {

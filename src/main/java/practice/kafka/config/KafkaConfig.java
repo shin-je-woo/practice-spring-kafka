@@ -11,9 +11,11 @@ import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
 import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 import java.util.HashMap;
 
+@EnableAsync
 @EnableKafka
 @Configuration
 public class KafkaConfig {

@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Getter
 @Builder
 @AllArgsConstructor
-public class MyModel {
+public class MyCdcModel {
     private final Integer id;
     private final Integer userId;
     private final Integer userAge;
@@ -18,13 +18,13 @@ public class MyModel {
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
 
-    public static MyModel of(
+    public static MyCdcModel of(
             Integer userId,
             Integer userAge,
             String userName,
             String content
     ) {
-        return MyModel.builder()
+        return MyCdcModel.builder()
                 .userId(userId)
                 .userAge(userAge)
                 .userName(userName)
