@@ -7,6 +7,8 @@ import practice.kafka.data.MyEntity;
 import practice.kafka.data.MyRepository;
 import practice.kafka.model.MyModel;
 import practice.kafka.model.MyModelConverter;
+import practice.kafka.model.OperationType;
+import practice.kafka.producer.MyCdcProducer;
 
 import java.util.List;
 
@@ -15,6 +17,7 @@ import java.util.List;
 public class MyService {
 
     private final MyRepository myRepository;
+    private final MyCdcProducer myCdcProducer;
 
     @Transactional(readOnly = true)
     public List<MyModel> findAll() {
@@ -33,7 +36,15 @@ public class MyService {
     @Transactional
     public MyModel save(MyModel myModel) {
         MyEntity myEntity = myRepository.save(MyModelConverter.toEntity(myModel));
-        return MyModelConverter.toModel(myEntity);
+        MyModel resultModel = MyModelConverter.toModel(myEntity);
+        myCdcProducer.sendMessage(
+                MyModelConverter.toMessage(
+                        resultModel.getId(),
+                        resultModel,
+                        OperationType.CREATE
+                )
+        );
+        return resultModel;
     }
 
     @Transactional
@@ -41,11 +52,25 @@ public class MyService {
         MyEntity myEntity = myRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("not found"));
         myEntity.changeContent(content);
-        return MyModelConverter.toModel(myEntity);
+        MyModel resultModel = MyModelConverter.toModel(myEntity);
+        myCdcProducer.sendMessage(
+                MyModelConverter.toMessage(
+                        resultModel.getId(),
+                        resultModel,
+                        OperationType.UPDATE
+                )
+        );
+        return resultModel;
     }
 
     @Transactional
     public void delete(Integer id) {
         myRepository.deleteById(id);
+        myCdcProducer.sendMessage(
+                MyModelConverter.toMessage(
+                        id,
+                        null,
+                        OperationType.DELETE
+                ));
     }
 }
