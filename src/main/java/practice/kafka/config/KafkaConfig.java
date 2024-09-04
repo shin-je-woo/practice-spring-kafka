@@ -1,5 +1,6 @@
 package practice.kafka.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -10,11 +11,15 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.*;
+import org.springframework.kafka.listener.CommonErrorHandler;
 import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.HashMap;
 
+@Slf4j
 @EnableAsync
 @EnableKafka
 @Configuration
@@ -36,11 +41,30 @@ public class KafkaConfig {
     @Bean
     @Primary
     public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
-            ConsumerFactory<String, Object> consumerFactory
+            ConsumerFactory<String, Object> consumerFactory,
+            KafkaTemplate<String, Object> kafkaTemplate
     ) {
         ConcurrentKafkaListenerContainerFactory<String, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
+        CommonErrorHandler errorHandler = retryAndPublishDltErrorHandler(kafkaTemplate); // 에러 발생 시 1초마다 5번 재시도
+        factory.setCommonErrorHandler(errorHandler);
         return factory;
+    }
+
+    /**
+     * 컨슈머 Exception 발생 시 에러 핸들링
+     * 기존 컨슈머는 skip하고, DLT에 이벤트 발행
+     */
+    @Bean
+    public CommonErrorHandler retryAndPublishDltErrorHandler(KafkaTemplate<String, Object> kafkaTemplate) {
+        return new DefaultErrorHandler((record, exception) -> {
+            log.warn("Retry 실패하여 DLT에 이벤트를 발행합니다.");
+            kafkaTemplate.send(
+                    record.topic().concat("-dlt"),
+                    String.valueOf(record.key()),
+                    record.value());
+        }, new FixedBackOff(2000L, 5L)
+        );
     }
 
     @Bean
